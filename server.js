@@ -7,7 +7,7 @@ const passport = require("passport");
 const LocalStrategy = require("passport-local").Strategy;
 const cors = require("cors");
 const db = mysql.createConnection({
-  host: "http://eu-cdbr-west-01.cleardb.com/",
+  host: "eu-cdbr-west-01.cleardb.com",
   user: "b5e1cc05d567dc",
   password: "b0c9f2fc",
   database: "heroku_1881ea096897225",
