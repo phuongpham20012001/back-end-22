@@ -1,12 +1,11 @@
 const express = require("express");
 const app = express();
-const port = 3000;
 const mysql = require("mysql");
 const session = require('cookie-session');
 const passport = require("passport");
 const LocalStrategy = require("passport-local").Strategy;
 const cors = require("cors");
-const db = mysql.createConnection({
+const db = mysql.createPool({
   host: "eu-cdbr-west-01.cleardb.com",
   user: "b5e1cc05d567dc",
   password: "b0c9f2fc",
