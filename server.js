@@ -131,6 +131,20 @@ app.get("/customer",checkAuthenticated,customer,(req, res) => {
     }
   );
 });
+//browse for restaurant with id
+app.get("/restaurant/:id", (req, res) => {
+  db.query(
+    `SELECT * FROM restaurant WHERE restaurant_id ='${req.params.id}'`,
+    function (err, rows) {
+      if (err) throw err;
+      var result = Object.values(JSON.parse(JSON.stringify(rows)));
+      res.send(result);
+      console.log(result)
+     
+    }
+  );
+  
+});
 // browse restaurant (customer)
 app.get("/restaurants",(req, res) => {    
   db.query(
