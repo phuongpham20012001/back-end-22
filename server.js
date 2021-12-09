@@ -1,9 +1,12 @@
 const express = require("express");
 const app = express();
+const port = 3000;
+const jwt = require("jsonwebtoken");
+const JwtStrategy = require("passport-jwt").Strategy,
+      ExtractJwt = require("passport-jwt").ExtractJwt;
 const mysql = require("mysql");
-const session = require('cookie-session');
 const passport = require("passport");
-const LocalStrategy = require("passport-local").Strategy;
+const BasicStrategy = require("passport-http").BasicStrategy
 const cors = require("cors");
 const db = mysql.createPool({
   host: "eu-cdbr-west-01.cleardb.com",
@@ -15,34 +18,34 @@ app.use(cors());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 app.use(passport.initialize());
-app.use(
-  session({
-    secret: "mysecret",
-    cookie: { maxAge: 1000 * 60 * 5 },
-    resave: true,
-    saveUninitialized: true,
-  })
-);
-app.use(passport.session());
-app.get("/login", (req, res) => {
-  res.send({message : "login"});
-});
-app.post("/login",
-    passport.authenticate("local", {
-      failureRedirect: "/login",
-      successRedirect: "/home",
-    })
-  );
-//check if the user is logged in
-function checkAuthenticated(req, res, next) {
-  if (req.isAuthenticated()) {
-    return next();
-  }
-  res.redirect("/login");
+const jwtOptions = {
+  jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+  secretOrKey :"MyVerySercretSigningKey"
 }
+passport.use(new JwtStrategy(jwtOptions, function(jwt_payload, done) {
+  console.log("Processing JWT payload for token content:");
+  console.log(jwt_payload);
+    done(null, jwt_payload);
+}));
+
+app.post("/login",passport.authenticate('basic', { session: false }),(req, res) => {
+  
+  const payload = {
+    user: req.user
+  }
+  const serectKey = "MyVerySercretSigningKey"
+  const options = {
+    expiresIn : '1d'
+  }
+  const generatedJWT= jwt.sign(payload,serectKey,options)
+  res.send({jwt : generatedJWT})
+
+});
+
+
 
 function manager (req, res, next) {
-  const user = req.session.passport.user;
+  const user = req.user.user.username;
   db.query(
     `SELECT root FROM user WHERE username ='${user}'`,
     function (err, rows) {
@@ -52,7 +55,7 @@ function manager (req, res, next) {
       if (result[0].root === "manager") {
         return next();
       } else {
-        res.redirect("/login");
+        res.send({message : "Need to login as manager"})
       }
     }
   );
@@ -61,7 +64,7 @@ function manager (req, res, next) {
 }
 
 function customer (req, res, next) {
-  const user = req.session.passport.user;
+  const user = req.user.user.username;
   db.query(
     `SELECT root FROM user WHERE username ='${user}'`,
     function (err, rows) {
@@ -71,7 +74,7 @@ function customer (req, res, next) {
       if (result[0].root === "customer") {
         return next();
       } else {
-        res.redirect("/login");
+        res.send({message : "Need to login as customer"})
       }
     }
   );
@@ -79,48 +82,13 @@ function customer (req, res, next) {
   
 }
 app.get('/logout', function (req, res) {
-  delete req.session.passport.user
-  res.redirect('/login');
+  delete req.user
+  res.send({message : "logout"});
 });  
-function status (req, res) {
-  setTimeout(function(){
-    const user = req.session.passport.user
-    console.log(user)
-    ; 
- }, 1000);
-}
 
-// customer or manager
-function authRoot(req, res, next) {
-  const user = req.session.passport.user;
-  db.query(
-    `SELECT root FROM user WHERE username ='${user}'`,
-    function (err, rows) {
-      if (err) throw err;
-      var result = Object.values(JSON.parse(JSON.stringify(rows)));
 
-      if (result.length === 0) {
-        done(null, false);
-      } else {
-        if (result[0].root === "customer") {
-         
-          res.redirect("/customer")
-        } else {
-         
-          res.redirect("/manager")
-        }
-      }
-    }
-  );
-
-  next();
-}
-
-app.get("/home" ,authRoot ,checkAuthenticated, (req, res) => { 
-  
-});
-app.get("/customer",checkAuthenticated,customer,(req, res) => {
-  const user = req.session.passport.user;
+app.get("/customer",passport.authenticate('jwt', { session:false }),customer,(req, res) => {
+  const user = req.user.user.username;
   db.query(
     `SELECT * FROM user WHERE username ='${user}'`,
     function (err, rows) {
@@ -130,20 +98,6 @@ app.get("/customer",checkAuthenticated,customer,(req, res) => {
       console.log("customer")
     }
   );
-});
-//browse for restaurant with id
-app.get("/restaurant/:id", (req, res) => {
-  db.query(
-    `SELECT * FROM restaurant WHERE restaurant_id ='${req.params.id}'`,
-    function (err, rows) {
-      if (err) throw err;
-      var result = Object.values(JSON.parse(JSON.stringify(rows)));
-      res.send(result);
-      console.log(result)
-     
-    }
-  );
-  
 });
 // browse restaurant (customer)
 app.get("/restaurants",(req, res) => {    
@@ -160,11 +114,8 @@ app.get("/restaurants",(req, res) => {
   );
 });
 // Search for restaurant 
-app.get("/restaurant/search",(req, res) => {
-  res.send({message :"restaurant search"});
-});
+
 app.post("/restaurant/search",(req, res) => {
-  console.log(req.body.restaurant)
    db.query(
     `SELECT * FROM restaurant WHERE restaurant_name LIKE'%${req.body.restaurant}%'`,
     function (err, rows) {
@@ -184,6 +135,20 @@ app.post("/restaurant/search",(req, res) => {
     
   );
 });
+//Browse restaurant (customer)
+app.get("/restaurant/:id", (req, res) => {
+  db.query(
+    `SELECT * FROM restaurant WHERE restaurant_id ='${req.params.id}'`,
+    function (err, rows) {
+      if (err) throw err;
+      var result = Object.values(JSON.parse(JSON.stringify(rows)));
+      res.send(result);
+      console.log(result)
+     
+    }
+  );
+  
+});
 //Browse restaurant menus (customer)
 app.get("/restaurant/menu/:id", (req, res) => {
   db.query(
@@ -199,9 +164,8 @@ app.get("/restaurant/menu/:id", (req, res) => {
   
 });
 //customer order status
-app.get("/customer/order/status",checkAuthenticated,customer,(req, res) => {
-  
-  const user = req.session.passport.user;
+app.get("/customer/order/status",passport.authenticate('jwt', { session:false }),customer,(req, res) => {
+  const user = req.user.user.username;
   db.query(
     `SELECT user_id FROM user WHERE username ='${user}'`,
     function (err, rows) {
@@ -213,8 +177,44 @@ app.get("/customer/order/status",checkAuthenticated,customer,(req, res) => {
         function (err, rows) {
           if (err) throw err;
           var result2 = Object.values(JSON.parse(JSON.stringify(rows)));
+          
           if (result2.length === 0) { res.send({message :"No order yet"})}
-          else {res.send(result2)  }
+          else { 
+            var product_id = result2.map(a => a.product_id)
+
+            var stringSQL="(";
+              for (var i = 0; i < product_id.length; i++) { 
+                
+                stringSQL= stringSQL + ",'" +product_id[i] +"'"
+              }
+              stringSQL=stringSQL +")"
+              
+
+              var strArr = stringSQL.split("");
+              strArr[1]="";
+              stringSQL= strArr.join("");
+                console.log(stringSQL)
+             
+                db.query(
+                
+                  "SELECT product.product_id, product_name, `order`.order_status FROM product INNER JOIN `order` ON product.product_id = `order`.product_id WHERE product.product_id IN "+ stringSQL + "AND `order`.order_status != 'Delivered' ",
+                   function (err, rows) {
+                     if (err) throw err;
+                     
+                     var result3 = Object.values(JSON.parse(JSON.stringify(rows)));
+                    
+                     if (result3.length === 0) {
+                      //  res.send("No order yet")
+                      console.log("no")
+                     } else {
+                      
+                      res.send(result3)
+                     
+                     }
+                     
+                   } 
+                 );
+           }
            
         } 
       );
@@ -223,10 +223,10 @@ app.get("/customer/order/status",checkAuthenticated,customer,(req, res) => {
  
        
 });
-// customer order history
-app.get("/customer/order/history",checkAuthenticated,customer,(req, res) => {
+// customer order history 
+app.get("/customer/order/history",passport.authenticate('jwt', { session:false }),customer,(req, res) => {
   
-  const user = req.session.passport.user;
+  const user = req.user.user.username;
   db.query(
     `SELECT user_id FROM user WHERE username ='${user}'`,
     function (err, rows) {
@@ -234,12 +234,48 @@ app.get("/customer/order/history",checkAuthenticated,customer,(req, res) => {
       var result = Object.values(JSON.parse(JSON.stringify(rows)));
        var id = result.map(a => a.user_id)   
        db.query(
-        "SELECT * FROM `order`  WHERE user_id =" + `${id}` +" AND order_status = 'Delivered'",
+        "SELECT product_id, order_status FROM `order`  WHERE user_id =" + `${id}` + " AND order_status != 'Delivered'",
         function (err, rows) {
           if (err) throw err;
           var result2 = Object.values(JSON.parse(JSON.stringify(rows)));
-           
-          if (result2.length === 0) {res.send({message :"no order yet"})} else {res.send(result2)}
+          
+          if (result2.length === 0) { res.send({message :"No order yet"})}
+          else { 
+            var product_id = result2.map(a => a.product_id)
+
+            var stringSQL="(";
+              for (var i = 0; i < product_id.length; i++) { 
+                
+                stringSQL= stringSQL + ",'" +product_id[i] +"'"
+              }
+              stringSQL=stringSQL +")"
+              
+
+              var strArr = stringSQL.split("");
+              strArr[1]="";
+              stringSQL= strArr.join("");
+                console.log(stringSQL)
+             
+                db.query(
+                
+                  "SELECT product.product_id, product_name, `order`.order_status FROM product INNER JOIN `order` ON product.product_id = `order`.product_id WHERE product.product_id IN "+ stringSQL + "AND `order`.order_status = 'Delivered' ",
+                   function (err, rows) {
+                     if (err) throw err;
+                     
+                     var result3 = Object.values(JSON.parse(JSON.stringify(rows)));
+                    
+                     if (result3.length === 0) {
+                      //  res.send("No order yet")
+                      console.log("no")
+                     } else {
+                      
+                      res.send(result3)
+                     
+                     }
+                     
+                   } 
+                 );
+           }
            
         } 
       );
@@ -249,8 +285,8 @@ app.get("/customer/order/history",checkAuthenticated,customer,(req, res) => {
        
 });
 //customer comfirm order 
-app.get("/customer/order/confirm",checkAuthenticated,customer,(req, res) => {
-  const user = req.session.passport.user;
+app.get("/customer/order/confirm",passport.authenticate('jwt', { session:false }),customer,(req, res) => {
+  const user = req.user.user.username;
   db.query(
     `SELECT user_id FROM user WHERE username ='${user}'`,
     function (err, rows) {
@@ -262,16 +298,52 @@ app.get("/customer/order/confirm",checkAuthenticated,customer,(req, res) => {
         function (err, rows) {
           if (err) throw err;
           var result2 = Object.values(JSON.parse(JSON.stringify(rows)));
+          
           if (result2.length === 0) { res.send({message :"No order yet"})}
-          else {res.send(result2)  }
+          else { 
+            var product_id = result2.map(a => a.product_id)
+
+            var stringSQL="(";
+              for (var i = 0; i < product_id.length; i++) { 
+                
+                stringSQL= stringSQL + ",'" +product_id[i] +"'"
+              }
+              stringSQL=stringSQL +")"
+              
+
+              var strArr = stringSQL.split("");
+              strArr[1]="";
+              stringSQL= strArr.join("");
+                console.log(stringSQL)
+             
+                db.query(
+                
+                  "SELECT product.product_id, product_name, `order`.order_status FROM product INNER JOIN `order` ON product.product_id = `order`.product_id WHERE product.product_id IN "+ stringSQL + "AND `order`.order_status != 'Delivered' ",
+                   function (err, rows) {
+                     if (err) throw err;
+                     
+                     var result3 = Object.values(JSON.parse(JSON.stringify(rows)));
+                    
+                     if (result3.length === 0) {
+                      //  res.send("No order yet")
+                      console.log("no")
+                     } else {
+                      
+                      res.send(result3)
+                     
+                     }
+                     
+                   } 
+                 );
+           }
            
         } 
       );
     } 
   );
 })
-app.post("/customer/order/confirm",checkAuthenticated,customer,(req, res) => {
-   const user = req.session.passport.user;
+app.post("/customer/order/confirm",passport.authenticate('jwt', { session:false }),customer,(req, res) => {
+   const user = req.user.user.username;
   db.query(
     `SELECT user_id FROM user WHERE username ='${user}'`,
     function (err, rows) {
@@ -293,12 +365,9 @@ app.post("/customer/order/confirm",checkAuthenticated,customer,(req, res) => {
        
 });
 //customer add order
-app.get("/customer/order",checkAuthenticated,customer,(req, res) => {
-  res.send({message :"Customer add order"})
-});
-app.post("/customer/order",checkAuthenticated,customer,(req, res) => {
+app.post("/customer/order",passport.authenticate('jwt', { session:false }),customer,(req, res) => {
   
-  const user = req.session.passport.user;
+  const user = req.user.user.username;
   db.query(
     `SELECT user_id FROM user WHERE username ='${user}'`,
     function (err, rows) {
@@ -326,9 +395,21 @@ app.post("/customer/order",checkAuthenticated,customer,(req, res) => {
  
   res.send({message :"okay"})       
 });
+app.get("/manager",passport.authenticate('jwt', { session:false }),manager,(req, res) => {
+  const user = req.user.user.username;
+  db.query(
+    `SELECT * FROM user WHERE username ='${user}'`,
+    function (err, rows) {
+      if (err) throw err;
+      var result = Object.values(JSON.parse(JSON.stringify(rows)));
+      res.send(result);
+      console.log("customer")
+    }
+  );
+});
 // manager modify order status
-app.get("/manager/order/modify/status",checkAuthenticated,manager,(req, res) => {
-  const user = req.session.passport.user;
+app.get("/manager/order/modify/status",passport.authenticate('jwt', { session:false }),manager,(req, res) => {
+  const user = req.user.user.username;
   db.query(
     `SELECT user_id FROM user WHERE username ='${user}'`,
     function (err, rows) {
@@ -397,7 +478,7 @@ app.get("/manager/order/modify/status",checkAuthenticated,manager,(req, res) => 
  
        
 });
-app.post("/manager/order/modify/status",checkAuthenticated,manager,(req, res) => {
+app.post("/manager/order/modify/status",passport.authenticate('jwt', { session:false }),manager,(req, res) => {
   if( req.body.order_id && req.body.order_status ) {
     var sql = "UPDATE `order` SET order_status = ? WHERE order_id = " + `${req.body.order_id}`
   console.log(req.body.order_status)
@@ -420,8 +501,8 @@ app.post("/manager/order/modify/status",checkAuthenticated,manager,(req, res) =>
        
 });
 // manager receive order 
-app.get("/manager/order",checkAuthenticated, manager, (req, res) => {
-  const user = req.session.passport.user;
+app.get("/manager/order",passport.authenticate('jwt', { session:false }), manager, (req, res) => {
+  const user = req.user.user.username;
   db.query(
     `SELECT user_id FROM user WHERE username ='${user}'`,
     function (err, rows) {
@@ -489,8 +570,8 @@ app.get("/manager/order",checkAuthenticated, manager, (req, res) => {
 
 });
 // manager order history (need to fix)
-app.get("/manager/order/history",checkAuthenticated, manager, (req, res) => {
-  const user = req.session.passport.user;
+app.get("/manager/order/history",passport.authenticate('jwt', { session:false }), manager,(req, res) => {
+  const user = req.user.user.username;
   db.query(
     `SELECT user_id FROM user WHERE username ='${user}'`,
     function (err, rows) {
@@ -553,26 +634,9 @@ app.get("/manager/order/history",checkAuthenticated, manager, (req, res) => {
   );
 
 });
-app.get("/manager", checkAuthenticated,(req, res) => {
-  const user = req.session.passport.user;
-  db.query(
-    `SELECT * FROM user WHERE username ='${user}'`,
-    function (err, rows) {
-      if (err) throw err;
-      var result = Object.values(JSON.parse(JSON.stringify(rows)));
-      res.send(result);
-      console.log("manager")
-     
-    }
-  );
-});
 // Create a new category
-app.get("/category",checkAuthenticated,manager,(req, res) => {
- 
-  res.send({message :"category"})
 
-});
-app.post("/category",checkAuthenticated,manager,(req, res) => {
+app.post("/category",passport.authenticate('jwt', { session:false }),manager,(req, res) => {
   db.query(
     `SELECT category_name FROM category `,
       function (err, rows) {
@@ -602,7 +666,7 @@ app.post("/category",checkAuthenticated,manager,(req, res) => {
 });
 //passport login
 passport.use(
-  new LocalStrategy(function (username, password, done) {
+  new BasicStrategy(function (username, password, done) {
     try {
       db.query(
         `SELECT * FROM user WHERE username ='${username}'`,
@@ -626,30 +690,9 @@ passport.use(
     }
   })
 );
-passport.serializeUser(function (user, done) {
-  done(null, user.username);
-});
-passport.deserializeUser((username, done) => {
-  try {
-    db.query(
-      `SELECT * FROM user WHERE username ='${username}'`,
-      function (err, rows) {
-        if (err) throw err;
-        var result = Object.values(JSON.parse(JSON.stringify(rows)));
 
-        if (result[0]) {
-          done(null, result[0]);
-        } else {
-          return done(null, false);
-        }
-      }
-    );
-  } catch (err) {
-    done(err, null);
-  }
-});
 // create menu  
-app.get("/restaurant/menu",checkAuthenticated ,manager,(req, res) => {
+app.get("/restaurant/menu",passport.authenticate('jwt', { session:false }),manager,(req, res) => {
   db.query(
     `SELECT category_name FROM category `,
     function (err, rows) {
@@ -672,7 +715,7 @@ app.get("/restaurant/menu",checkAuthenticated ,manager,(req, res) => {
     
 );
 });
-app.post("/restaurant/menu", (req, res) => {
+app.post("/restaurant/menu",passport.authenticate('jwt', { session:false }), manager,(req, res) => {
   if(req.body.product_name && req.body.price &&  req.body.description && req.body.product_image && req.body.category_name && req.body.restaurant_name) {
     db.query(
       `SELECT category_id FROM category WHERE category_name ='${req.body.category_name}'`,
@@ -723,10 +766,6 @@ app.post("/restaurant/menu", (req, res) => {
   }
 })
 //create user account and account is unique
-app.get("/register", (req, res) => {
-
-  res.send({message :"register"})
-});
 app.post("/register", (req, res) => {
   
   if(req.body.username && req.body.password &&  req.body.first_name && req.body.last_name && req.body.address && req.body.phone_number && req.body.country && req.body.date_of_birth && req.body.root) {
@@ -771,11 +810,8 @@ app.post("/register", (req, res) => {
   
 });
 // create restaurant
-app.get("/register_restaurant",checkAuthenticated,manager,(req, res) => {
-  res.send({message :"register_restaurant"})
-});
-app.post("/register_restaurant",checkAuthenticated,manager, (req, res) => {
-  const user = req.session.passport.user;
+app.post("/register_restaurant",passport.authenticate('jwt', { session:false }), manager,(req, res) => {
+  const user = req.user.user.username;
   if( req.body.restaurant_name && req.body.address_restaurant &&  req.body.operating_hours && req.body.image && req.body.restaurant_type && req.body.price_level) {
     db.query(
       `SELECT user_id FROM user WHERE username ='${user}'`,
