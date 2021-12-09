@@ -408,6 +408,7 @@ app.get("/manager",passport.authenticate('jwt', { session:false }),manager,(req,
   );
 });
 // manager modify order status
+// manager modify order status
 app.get("/manager/order/modify/status",passport.authenticate('jwt', { session:false }),manager,(req, res) => {
   const user = req.user.user.username;
   db.query(
@@ -447,7 +448,7 @@ app.get("/manager/order/modify/status",passport.authenticate('jwt', { session:fa
              
                 db.query(
                 
-                  "SELECT * FROM `order`  WHERE product_id IN "+ stringSQL+ " AND order_status = 'Ordering'",
+                  "SELECT `order`.order_status, `order`.product_id, product.product_name FROM `order` INNER JOIN `product` ON `order`.product_id = product.product_id WHERE product.product_id IN "+ stringSQL + "AND `order`.order_status != 'Delivered' ",
                    function (err, rows) {
                      if (err) throw err;
                      
@@ -541,7 +542,7 @@ app.get("/manager/order",passport.authenticate('jwt', { session:false }), manage
              
                 db.query(
                 
-                  "SELECT * FROM `order`  WHERE product_id IN "+ stringSQL+ " AND order_status = 'Ordering'",
+                  "SELECT `order`.order_status, `order`.product_id, product.product_name FROM `order` INNER JOIN `product` ON `order`.product_id = product.product_id WHERE product.product_id IN "+ stringSQL + "AND `order`.order_status != 'Delivered' ",
                    function (err, rows) {
                      if (err) throw err;
                      
@@ -569,7 +570,7 @@ app.get("/manager/order",passport.authenticate('jwt', { session:false }), manage
   );
 
 });
-// manager order history (need to fix)
+// manager order history 
 app.get("/manager/order/history",passport.authenticate('jwt', { session:false }), manager,(req, res) => {
   const user = req.user.user.username;
   db.query(
@@ -608,7 +609,7 @@ app.get("/manager/order/history",passport.authenticate('jwt', { session:false })
              
                 db.query(
                 
-                  "SELECT * FROM `order`  WHERE product_id IN "+ stringSQL+ " AND order_status = 'Delivered'",
+                  "SELECT `order`.order_status, `order`.product_id, product.product_name FROM `order` INNER JOIN `product` ON `order`.product_id = product.product_id WHERE product.product_id IN "+ stringSQL + "AND `order`.order_status = 'Delivered' ",
                    function (err, rows) {
                      if (err) throw err;
                      
