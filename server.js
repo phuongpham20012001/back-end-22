@@ -197,15 +197,15 @@ app.get("/customer/order/status",passport.authenticate('jwt', { session:false })
              
                 db.query(
                 
-                  "SELECT product.product_id, product_name, `order`.order_status FROM product INNER JOIN `order` ON product.product_id = `order`.product_id WHERE product.product_id IN "+ stringSQL + "AND `order`.order_status != 'Delivered' ",
+                  "SELECT product.product_id, product_name, `order`.order_status FROM product INNER JOIN `order` ON product.product_id = `order`.product_id WHERE product.product_id IN "+ stringSQL + "AND `order`.order_status != 'Delivered'" + "AND `order`.user_id =" + `${id}`,
                    function (err, rows) {
                      if (err) throw err;
                      
                      var result3 = Object.values(JSON.parse(JSON.stringify(rows)));
                     
                      if (result3.length === 0) {
-                      //  res.send("No order yet")
-                      console.log("no")
+                       res.send({message:"No order yet"})
+                     
                      } else {
                       
                       res.send(result3)
@@ -234,7 +234,7 @@ app.get("/customer/order/history",passport.authenticate('jwt', { session:false }
       var result = Object.values(JSON.parse(JSON.stringify(rows)));
        var id = result.map(a => a.user_id)   
        db.query(
-        "SELECT product_id, order_status FROM `order`  WHERE user_id =" + `${id}` + " AND order_status != 'Delivered'",
+        "SELECT product_id, order_status FROM `order`  WHERE user_id =" + `${id}` + " AND order_status = 'Delivered'",
         function (err, rows) {
           if (err) throw err;
           var result2 = Object.values(JSON.parse(JSON.stringify(rows)));
@@ -258,7 +258,7 @@ app.get("/customer/order/history",passport.authenticate('jwt', { session:false }
              
                 db.query(
                 
-                  "SELECT product.product_id, product_name, `order`.order_status FROM product INNER JOIN `order` ON product.product_id = `order`.product_id WHERE product.product_id IN "+ stringSQL + "AND `order`.order_status = 'Delivered' ",
+                  "SELECT product.product_id, product_name, `order`.order_status FROM product INNER JOIN `order` ON product.product_id = `order`.product_id WHERE product.product_id IN "+ stringSQL + "AND `order`.order_status = 'Delivered'" + "AND `order`.user_id =" + `${id}`,
                    function (err, rows) {
                      if (err) throw err;
                      
@@ -266,7 +266,7 @@ app.get("/customer/order/history",passport.authenticate('jwt', { session:false }
                     
                      if (result3.length === 0) {
                       //  res.send("No order yet")
-                      console.log("no")
+                      res.send({message : "No order yet"})
                      } else {
                       
                       res.send(result3)
