@@ -8,6 +8,19 @@ const mysql = require("mysql");
 const passport = require("passport");
 const BasicStrategy = require("passport-http").BasicStrategy
 const cors = require("cors");
+
+
+var cloudinary = require('cloudinary');
+var { CloudinaryStorage } = require('multer-storage-cloudinary');
+var multer = require('multer');
+
+var storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  folder: '', // give cloudinary folder where you want to store images
+  allowedFormats: ['jpg', 'png'],
+});
+
+
 const db = mysql.createPool({
   host: "eu-cdbr-west-01.cleardb.com",
   user: "b5e1cc05d567dc",
@@ -18,6 +31,15 @@ app.use(cors());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 app.use(passport.initialize());
+
+
+var parser = multer({ storage: storage });
+app.post('/upload', parser.single('image'), function (req, res) {
+  console.log(req.file);
+  res.status(201);
+  res.json(req.file);
+});
+
 const jwtOptions = {
   jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
   secretOrKey :"MyVerySercretSigningKey"
