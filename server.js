@@ -10,7 +10,7 @@ const BasicStrategy = require("passport-http").BasicStrategy
 const cors = require("cors");
 
 
-const imageUpload= require('./upload_file');
+
 
 const db = mysql.createPool({
   host: "eu-cdbr-west-01.cleardb.com",
@@ -24,13 +24,13 @@ app.use(express.json());
 app.use(passport.initialize());
 
 
-app.post('/uploadImage', imageUpload.single('myImage'), (req, res) => {
+// app.post('/uploadImage', imageUpload.single('myImage'), (req, res) => {
 
-    console.log(res)
-  res.send("successful !!!");
-}, (error, req, res, next) => {
-  res.status(400).send({ error: error.message })
-})
+//     console.log(res)
+//   res.send("successful !!!");
+// }, (error, req, res, next) => {
+//   res.status(400).send({ error: error.message })
+// })
 
 const jwtOptions = {
   jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
