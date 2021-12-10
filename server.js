@@ -10,16 +10,7 @@ const BasicStrategy = require("passport-http").BasicStrategy
 const cors = require("cors");
 
 
-var cloudinary = require('cloudinary');
-var { CloudinaryStorage } = require('multer-storage-cloudinary');
-var multer = require('multer');
-
-var storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  folder: '', // give cloudinary folder where you want to store images
-  allowedFormats: ['jpg', 'png'],
-});
-
+const imageUpload= require('./upload_file');
 
 const db = mysql.createPool({
   host: "eu-cdbr-west-01.cleardb.com",
@@ -33,12 +24,13 @@ app.use(express.json());
 app.use(passport.initialize());
 
 
-var parser = multer({ storage: storage });
-app.post('/upload', parser.single('image'), function (req, res) {
-  console.log(req.file);
-  res.status(201);
-  res.json(req.file);
-});
+app.post('/uploadImage', imageUpload.single('myImage'), (req, res) => {
+
+    console.log(res)
+  res.send("successful !!!");
+}, (error, req, res, next) => {
+  res.status(400).send({ error: error.message })
+})
 
 const jwtOptions = {
   jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -470,7 +462,7 @@ app.get("/manager/order/modify/status",passport.authenticate('jwt', { session:fa
              
                 db.query(
                 
-                  "SELECT `order`.order_status, `order`.product_id, product.product_name FROM `order` INNER JOIN `product` ON `order`.product_id = product.product_id WHERE product.product_id IN "+ stringSQL + "AND `order`.order_status != 'Delivered' ",
+                  "SELECT `order`.order_id, `order`.order_status, `order`.product_id, product.product_name FROM `order` INNER JOIN `product` ON `order`.product_id = product.product_id WHERE product.product_id IN "+ stringSQL + "AND `order`.order_status != 'Delivered' ",
                    function (err, rows) {
                      if (err) throw err;
                      
