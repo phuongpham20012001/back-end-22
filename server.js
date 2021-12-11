@@ -1,6 +1,5 @@
 const express = require("express");
 const app = express();
-const port = 3000;
 const jwt = require("jsonwebtoken");
 const JwtStrategy = require("passport-jwt").Strategy,
       ExtractJwt = require("passport-jwt").ExtractJwt;
@@ -8,29 +7,36 @@ const mysql = require("mysql");
 const passport = require("passport");
 const BasicStrategy = require("passport-http").BasicStrategy
 const cors = require("cors");
-
-
-
-
+const cloudinary = require('cloudinary').v2;
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const multer = require('multer');
+cloudinary.config({ 
+  cloud_name: 'hkkf8la48', 
+  api_key: '499861985493486',
+  api_secret: 'J3CCBaeckEdx-QLPpSKaGRIM0qM'
+});
 const db = mysql.createPool({
   host: "eu-cdbr-west-01.cleardb.com",
   user: "b5e1cc05d567dc",
   password: "b0c9f2fc",
   database: "heroku_1881ea096897225",
 });
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: '',
+    format: async (req, file) => 'png', // supports promises as well
+  
+  },
+});
+var parser = multer({ storage: storage });
 app.use(cors());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 app.use(passport.initialize());
 
 
-// app.post('/uploadImage', imageUpload.single('myImage'), (req, res) => {
 
-//     console.log(res)
-//   res.send("successful !!!");
-// }, (error, req, res, next) => {
-//   res.status(400).send({ error: error.message })
-// })
 
 const jwtOptions = {
   jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -730,8 +736,8 @@ app.get("/restaurant/menu",passport.authenticate('jwt', { session:false }),manag
     
 );
 });
-app.post("/restaurant/menu",passport.authenticate('jwt', { session:false }), manager,(req, res) => {
-  if(req.body.product_name && req.body.price &&  req.body.description && req.body.product_image && req.body.category_name && req.body.restaurant_name) {
+app.post("/restaurant/menu",passport.authenticate('jwt', { session:false }), parser.single('image'), manager,(req, res) => {
+  if(req.body.product_name && req.body.price &&  req.body.description && req.file.path && req.body.category_name && req.body.restaurant_name) {
     db.query(
       `SELECT category_id FROM category WHERE category_name ='${req.body.category_name}'`,
         function (err, rows) {
@@ -754,7 +760,7 @@ app.post("/restaurant/menu",passport.authenticate('jwt', { session:false }), man
                   (product_name = req.body.product_name),
                   (price = req.body.price),
                   (description = req.body.description),
-                  (product_image= req.body.product_image),
+                  (product_image= req.file.path),
                   (category_id = category),
                   (restaurant_id = restaurant)
                 ],
@@ -825,9 +831,9 @@ app.post("/register", (req, res) => {
   
 });
 // create restaurant
-app.post("/register_restaurant",passport.authenticate('jwt', { session:false }), manager,(req, res) => {
+app.post("/register_restaurant",passport.authenticate('jwt', { session:false }), parser.single('image'), manager,(req, res) => {
   const user = req.user.user.username;
-  if( req.body.restaurant_name && req.body.address_restaurant &&  req.body.operating_hours && req.body.image && req.body.restaurant_type && req.body.price_level) {
+  if( req.body.restaurant_name && req.body.address_restaurant &&  req.body.operating_hours && req.file.path && req.body.restaurant_type && req.body.price_level) {
     db.query(
       `SELECT user_id FROM user WHERE username ='${user}'`,
         function (err, rows) {
@@ -838,18 +844,20 @@ app.post("/register_restaurant",passport.authenticate('jwt', { session:false }),
             if (err) throw err;
             var result2 = Object.values(JSON.parse(JSON.stringify(rows)));
             var result3 = result2.map(a => a.user_id)
-            // console.log(result1)
-            console.log(result3)
+         
+           
+            
             if (result3.includes(result1[0]) === false ) {
               var sql =
               "INSERT INTO restaurant (restaurant_name, address, operating_hours,image,type,price_level,user_id) VALUES ?";
-            
+               
+               
               var values = [
               [
                 (restaurant_name = req.body.restaurant_name),
                 (address = req.body.address_restaurant),
                 (operating_hours = req.body.operating_hours),
-                (image = req.body.image),
+                (image = req.file.path),
                 (restaurant_type = req.body.restaurant_type),
                 (price_level = req.body.price_level),
                 (user_id = result1)
@@ -873,6 +881,9 @@ app.post("/register_restaurant",passport.authenticate('jwt', { session:false }),
     ) 
     
   }  else {
+    
+    // console.log(req.file.path)
+    
     res.send({message :"Please fill in all the information"})
   }
   
