@@ -754,14 +754,14 @@ app.post("/restaurantmenu",passport.authenticate('jwt', { session:false }), pars
                 
                 var restaurant = result.map(a => a.restaurant_id)
                 var sql =
-                "INSERT INTO product (product_name, price, description,product_image,category_id,restaurant_id) VALUES ?";
+                "INSERT INTO product (product_name, price, description , product_image, category_id, restaurant_id ) VALUES ?";
           
                 var values = [
                 [
                   (product_name = req.body.product_name),
                   (price = req.body.price),
                   (description = req.body.description),
-                  (product_image= req.file.path),
+                  (product_image=  req.file.path),
                   (category_id = category),
                   (restaurant_id = restaurant)
                 ],
