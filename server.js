@@ -713,7 +713,8 @@ passport.use(
 );
 
 // create menu  
-app.get("/restaurant/menu",passport.authenticate('jwt', { session:false }),manager,(req, res) => {
+app.get("/restaurantmenu",(req, res) => {
+ 
   db.query(
     `SELECT category_name FROM category `,
     function (err, rows) {
@@ -736,7 +737,7 @@ app.get("/restaurant/menu",passport.authenticate('jwt', { session:false }),manag
     
 );
 });
-app.post("/restaurant/menu",passport.authenticate('jwt', { session:false }), parser.single('image'), manager,(req, res) => {
+app.post("/restaurantmenu",passport.authenticate('jwt', { session:false }), parser.single('image'), manager,(req, res) => {
   if(req.body.product_name && req.body.price &&  req.body.description && req.file.path && req.body.category_name && req.body.restaurant_name) {
     db.query(
       `SELECT category_id FROM category WHERE category_name ='${req.body.category_name}'`,
