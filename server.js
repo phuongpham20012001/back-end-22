@@ -713,7 +713,7 @@ passport.use(
 );
 
 // create menu  
-app.get("/restaurantmenu",(req, res) => {
+app.get("/restaurantmenu",passport.authenticate('jwt', { session:false }),manager,(req, res) => {
  
   db.query(
     `SELECT category_name FROM category `,
