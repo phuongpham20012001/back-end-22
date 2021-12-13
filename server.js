@@ -217,7 +217,7 @@ app.get("/customer/order/status",passport.authenticate('jwt', { session:false })
              
                 db.query(
                 
-                  "SELECT product.product_id, product_name, `order`.order_status FROM product INNER JOIN `order` ON product.product_id = `order`.product_id WHERE product.product_id IN "+ stringSQL + "AND `order`.order_status != 'Delivered'" + "AND `order`.user_id =" + `${id}`,
+                  "SELECT product.product_id, product_name, `order`.order_status, `order`.order_id FROM product INNER JOIN `order` ON product.product_id = `order`.product_id WHERE product.product_id IN "+ stringSQL + "AND `order`.order_status != 'Delivered'" + "AND `order`.user_id =" + `${id}`,
                    function (err, rows) {
                      if (err) throw err;
                      
@@ -629,7 +629,7 @@ app.get("/manager/order/history",passport.authenticate('jwt', { session:false })
              
                 db.query(
                 
-                  "SELECT `order`.order_status, `order`.product_id, product.product_name FROM `order` INNER JOIN `product` ON `order`.product_id = product.product_id WHERE product.product_id IN "+ stringSQL + "AND `order`.order_status = 'Delivered' ",
+                  "SELECT `order`.order_id,  `order`.order_status, `order`.product_id, product.product_name FROM `order` INNER JOIN `product` ON `order`.product_id = product.product_id WHERE product.product_id IN "+ stringSQL + "AND `order`.order_status = 'Delivered' ",
                    function (err, rows) {
                      if (err) throw err;
                      
