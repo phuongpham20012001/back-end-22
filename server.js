@@ -338,7 +338,7 @@ app.get("/customer/order/confirm",passport.authenticate('jwt', { session:false }
              
                 db.query(
                 
-                  "SELECT product.product_id, product_name, `order`.order_status FROM product INNER JOIN `order` ON product.product_id = `order`.product_id WHERE product.product_id IN "+ stringSQL + "AND `order`.order_status != 'Delivered' ",
+                  "SELECT product.product_id, product_name, `order`.order_status, `order`.order_id FROM product INNER JOIN `order` ON product.product_id = `order`.product_id WHERE product.product_id IN "+ stringSQL + "AND `order`.order_status != 'Delivered' ",
                    function (err, rows) {
                      if (err) throw err;
                      
@@ -363,24 +363,16 @@ app.get("/customer/order/confirm",passport.authenticate('jwt', { session:false }
   );
 })
 app.post("/customer/order/confirm",passport.authenticate('jwt', { session:false }),customer,(req, res) => {
-   const user = req.user.user.username;
-  db.query(
-    `SELECT user_id FROM user WHERE username ='${user}'`,
-    function (err, rows) {
-      if (err) throw err;
-      var result = Object.values(JSON.parse(JSON.stringify(rows)));
-      
-      var id = result.map(a => a.user_id)
-      console.log(id)
-       var sql = "UPDATE `order` SET order_status = 'Delivered' WHERE user_id = " + `${id}` + " AND product_id  =  " + `${req.body.product_id}`
+
+       var sql = "UPDATE `order` SET order_status = 'Delivered' WHERE order_id = " + `${req.body.order_id}`
   
                 db.query(sql, function (err) {
                   if (err) throw err;
                   res.send({message :"confirm order success"})
                 });
                
-      } 
-  );
+      
+  
  
        
 });
