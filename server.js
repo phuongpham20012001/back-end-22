@@ -137,7 +137,7 @@ app.get("/restaurants",(req, res) => {
 
 app.post("/restaurant/search",(req, res) => {
    db.query(
-    `SELECT * FROM restaurant WHERE restaurant_name LIKE'%${req.body.restaurant}%'`,
+    `SELECT * FROM restaurant WHERE restaurant_name LIKE'%${req.body.restaurant_name}%'`,
     function (err, rows) {
       if (err) throw err;
       var result = Object.values(JSON.parse(JSON.stringify(rows)));
